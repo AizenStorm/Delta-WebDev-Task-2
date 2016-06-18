@@ -1,0 +1,246 @@
+<html>
+<head>
+<style>
+canvas{
+	background-color:#ffffff;
+    border: 1px solid black;
+    margin-left: 120px;
+    margin-top: 100px;
+}
+body{
+    font-family: "Comic Sans MS";
+}
+        
+</style>
+</head>
+<body onload="startGame()">
+
+<script>
+// global variables
+    var hero;
+    var obstacles = [];
+    var score;
+    var jump_sound;
+    var crash_sound;
+    var onGround = true;
+    var flag = true;
+
+//the game area object
+
+    var game_area =
+        {
+            canvas: document.createElement("canvas"),
+            start: function ()
+            {
+                this.canvas.width = 1000;
+                this.canvas.height = 190;
+                this.context = this.canvas.getContext("2d");
+                this.frame_num = 0;
+
+                document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+
+                this.interval = setInterval(updateGameArea, 20);
+
+                window.addEventListener('keydown', function (e)
+                {
+                    game_area.key = e.keyCode;
+                })
+
+                window.addEventListener('keyup', function (e)
+                {
+                    game_area.key = false;
+                })
+            },
+
+            clear: function ()
+            {
+                this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            },
+
+            stop: function ()
+            {
+                clearInterval(this.interval);
+            }
+        }
+
+//the generators
+
+    function component(width, height, x, y, color, type)
+    {
+        this.type = type;
+        this.width = width;
+        this.height = height;
+        this.x = x;
+        this.y = y;
+        this.speedX = 0;
+        this.speedY = 0;
+        if (this.type == "image")
+        {
+            this.image = new Image();
+            this.image.src = color;
+        }
+
+        this.update = function ()
+        {
+            ctx = game_area.context;
+            if (this.type == "text")
+            {
+                ctx.fontSize = "30px";
+                ctx.fillStyle = color;
+                ctx.fillText(this.text, this.x, this.y);
+            }
+            else if (this.type == "image")
+            {
+                ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+            }
+            else
+            {
+                ctx.fillStyle = color;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+        }
+
+        this.crash = function (other)
+        {
+            var hero_left = this.x;
+            var hero_right = this.x + (this.width);
+            var hero_top = this.y;
+            var hero_bottom = this.y + (this.height);
+            var other_left = other.x;
+            var other_right = other.x + (other.width);
+            var other_top = other.y;
+            var other_bottom = other.y + (other.height);
+
+            if (hero_left > other_right || hero_right < other_left || hero_bottom < other_top)
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        this.move = function ()
+        {
+            this.x += this.speedX;
+
+            if (this.y > 50 && flag)
+            {
+                this.y += this.speedY;
+            }
+            else if (this.y <= 50)
+            {
+                flag = false;
+                this.y -= this.speedY;
+            }
+            else if (this.y < 150 && !flag)
+            {
+                this.y -= this.speedY;
+            }
+            else if (this.y >= 150)
+            {
+                flag = true;
+                this.speedY = 0;
+                onGround = true;
+            }
+        }
+    }
+
+    function generateObstacle(n)
+    {
+        if (game_area.frame_num % n == 0)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    function sound(src)
+    {
+        this.sound = document.createElement("audio");
+        this.sound.src = src;
+        document.body.appendChild(this.sound);
+        this.play = function ()
+        {
+            this.sound.play();
+        }
+        this.stop = function ()
+        {
+            this.sound.pause();
+        }
+    }
+
+//the animation function
+
+    function updateGameArea()
+    {
+        for (i = 0; i < obstacles.length; i++)
+        {
+            if (hero.crash(obstacles[i]))
+            {
+                game_area.stop();
+                crash_sound.play();
+                hero.image.src = "dinosaur_cry.png";
+                return;
+            }
+        }
+
+        game_area.clear();
+        game_area.frame_num++;
+
+        if (game_area.frame_num == 1 || generateObstacle(100))
+        {
+            obstacles[obstacles.length] = new component(20, 55, 970, 192 - 55, "cact1.png", "image");
+        }
+
+        for (i = 0; i < obstacles.length; i++)
+        {
+            obstacles[i].x -= 4;
+            obstacles[i].update();
+        }
+
+        if (game_area.key && game_area.key == 32)
+        {
+            hero.speedY = -5;
+
+            if (onGround)
+            {
+                jump_sound.play();
+            }
+
+            onGround = false;
+        }
+
+        if (onGround)
+        {
+            if (game_area.frame_num % 8 < 4)
+            {
+                hero.image.src = "dino2.png";
+            }
+            else
+            {
+                hero.image.src = "dino1.png";
+            }
+        }
+
+        score.text = "Score: " + Math.floor(game_area.frame_num / 3);
+        hero.move();
+        hero.update();
+        score.update();
+    }
+
+    function startGame()
+    {
+        hero = new component(35, 40, 5, 152, "dino2.png", "image");
+        score = new component(100, 50, 940, 10, "black", "text");
+        jump_sound = new sound("jump.wav");
+        crash_sound = new sound("crash.wav");
+        game_area.start();
+    }
+</script>
+<div id="conatiner">
+</div>
+</body>
+</html>
